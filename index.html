@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#1a6b5a">
+  <meta name="description" content="بوابة شعبة التحقيق – الإدارة العامة للدفاع المدني بمنطقة حائل">
+  <title>شعبة التحقيق – الدفاع المدني حائل</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════ HEADER ═══════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-logo-wrap">
+        <!-- ضع شعار الدفاع المدني في: assets/logo.png -->
+        <img id="headerLogo" src="assets/logo.png" alt="شعار الدفاع المدني" class="header-logo-img">
+        <div class="header-logo-fallback" id="logoFallback">
+          <svg viewBox="0 0 60 70" fill="none" xmlns="http://www.w3.org/2000/svg" width="44" height="52">
+            <path d="M30 3L5 15v18c0 15.2 10.7 29.4 25 33C44.3 62.4 55 48.2 55 33V15L30 3z"
+                  fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+            <path d="M30 12c-3.3 4.2-5 8-5 12 0 3 1 5.5 3 7.5 1 1 2 1.5 2 3s-1 2-2 2.5"
+                  stroke="rgba(255,255,255,0.8)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+            <circle cx="30" cy="42" r="2" fill="rgba(255,255,255,0.9)"/>
+            <text x="30" y="62" text-anchor="middle" fill="rgba(255,255,255,0.7)"
+                  font-size="8" font-family="Tahoma,Arial" letter-spacing="1">د.م</text>
+          </svg>
+        </div>
+      </div>
+      <div class="header-titles">
+        <p class="header-line-sm">الإدارة العامة للدفاع المدني</p>
+        <p class="header-line-md">إدارة الدفاع المدني بمنطقة حائل</p>
+        <p class="header-line-lg">شعبة التحقيق</p>
+      </div>
+    </div>
+
+    <!--
+      شريط البحث – مخفي حالياً.
+      لتفعيله: احذف style="display:none" من السطر التالي
+    -->
+    <div class="search-wrap" id="searchWrap" style="display:none">
+      <div class="search-box">
+        <span class="search-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <input type="search" id="searchInput"
+               placeholder="ابحث في جميع الأقسام والملفات..."
+               autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="search-clear" id="searchClear" aria-label="مسح البحث" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="search-results" id="searchResults" role="list"></div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════ MAIN ═══════════════════════ -->
+  <main class="site-main" id="siteMain">
+    <div class="sections-grid" id="sectionsGrid" role="list">
+      <!-- تُولَّد بواسطة app.js -->
+      <div class="init-loading">
+        <div class="loading-spinner"></div>
+        <p>جارٍ التحميل…</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════ PREVIEW MODAL ═══════════════════════ -->
+  <div class="modal-overlay" id="previewModal"
+       role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+    <div class="modal-box" id="modalBox">
+
+      <!-- رأس المودال: زر الإغلاق + مسار التنقل -->
+      <div class="modal-head">
+        <button class="modal-close-btn" id="modalCloseBtn" aria-label="إغلاق المعاينة">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <nav class="breadcrumb" id="modalBreadcrumb" aria-label="مسار التنقل">
+          <!-- تُولَّد بواسطة JS -->
+        </nav>
+      </div>
+
+      <!-- منطقة العرض (PDF / صورة) -->
+      <div class="modal-viewer" id="modalViewer">
+
+        <div class="viewer-loading" id="viewerLoading">
+          <div class="loading-spinner"></div>
+          <p>جارٍ تحميل الملف…</p>
+        </div>
+
+        <iframe id="pdfFrame" class="pdf-frame"
+                title="عارض PDF" allowfullscreen
+                style="display:none"></iframe>
+
+        <div class="img-scroll-wrap" id="imgScrollWrap" style="display:none">
+          <img id="imgViewer" class="img-viewer" alt="معاينة الصورة">
+        </div>
+
+        <div class="no-preview" id="noPreview" style="display:none">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+               stroke="rgba(255,255,255,0.4)" stroke-width="1.4">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <p>لا تتوفر معاينة</p>
+          <a id="downloadLink" class="download-btn" href="#" download target="_blank">
+            تحميل الملف
+          </a>
+        </div>
+
+      </div>
+
+      <!-- شريط التنقل -->
+      <div class="modal-nav">
+
+        <!-- مستوى 1: التنقل بين عناصر نفس الفئة -->
+        <div class="nav-row" id="itemNavRow">
+          <button class="nav-arrow-btn" id="prevItemBtn" aria-label="العنصر السابق">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            <span>السابق</span>
+          </button>
+          <span class="nav-counter" id="itemNavLabel">—</span>
+          <button class="nav-arrow-btn" id="nextItemBtn" aria-label="العنصر التالي">
+            <span>التالي</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        </div>
+
+        <!-- مستوى 2: التنقل بين الفئات / الأقسام -->
+        <div class="nav-row nav-row-section" id="sectionNavRow">
+          <button class="nav-arrow-btn nav-sm" id="prevSectionBtn" aria-label="الفئة السابقة">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            <span id="prevSectionLabel">السابقة</span>
+          </button>
+          <span class="nav-section-title" id="sectionNavLabel">—</span>
+          <button class="nav-arrow-btn nav-sm" id="nextSectionBtn" aria-label="الفئة التالية">
+            <span id="nextSectionLabel">التالية</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

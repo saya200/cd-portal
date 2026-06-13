@@ -1,0 +1,87 @@
+{
+  "_instructions": {
+    "add_item": {
+      "desc": "لإضافة ملف جديد: أضف كائناً إلى مصفوفة items في القسم المناسب",
+      "structure": {
+        "id":    "معرّف فريد مثال: guide-001",
+        "title": "العنوان الذي يظهر في القائمة",
+        "type":  "pdf أو image",
+        "path":  "مسار الملف نسبةً لجذر المشروع  مثال: files/guides/guide-001.pdf"
+      }
+    },
+    "add_subcategory": {
+      "desc": "لإضافة فئة فرعية في التعاميم: أضف كائناً لمصفوفة subcategories",
+      "structure": {
+        "id": "معرّف فريد",
+        "title": "اسم الفئة",
+        "items": []
+      }
+    },
+    "enable_search": "في index.html: احذف style=display:none من عنصر div#searchWrap",
+    "set_external_link": "ضع رابط المنصة في حقل url الخاص بقسم incident-platform",
+    "add_logo": "ضع ملف الشعار في assets/logo.png أو assets/logo.svg"
+  },
+
+  "sections": [
+    {
+      "id": "guides",
+      "title": "الأدلة الإرشادية",
+      "hasSubcategories": false,
+      "isExternalLink": false,
+      "items": []
+    },
+
+    {
+      "id": "forms",
+      "title": "النماذج",
+      "hasSubcategories": false,
+      "isExternalLink": false,
+      "items": []
+    },
+
+    {
+      "id": "circulars",
+      "title": "التعاميم المهمة",
+      "hasSubcategories": true,
+      "isExternalLink": false,
+      "subcategories": [
+        {
+          "id": "death-injury",
+          "title": "تعاميم الوفيات والإصابات الفردية",
+          "items": []
+        },
+        {
+          "id": "vehicles",
+          "title": "تعاميم المركبات",
+          "items": []
+        },
+        {
+          "id": "assistance",
+          "title": "تعاميم المساعدات",
+          "items": []
+        },
+        {
+          "id": "other",
+          "title": "تعاميم أخرى",
+          "items": []
+        }
+      ]
+    },
+
+    {
+      "id": "fire-behavior",
+      "title": "سلوك الحريق",
+      "hasSubcategories": false,
+      "isExternalLink": false,
+      "items": []
+    },
+
+    {
+      "id": "incident-platform",
+      "title": "منصة إجراءات الحوادث",
+      "hasSubcategories": false,
+      "isExternalLink": true,
+      "url": ""
+    }
+  ]
+}
