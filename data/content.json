@@ -53,7 +53,14 @@
         {
           "id": "vehicles",
           "title": "تعاميم المركبات",
-          "items": []
+          "items": [
+            {
+              "id": "vehicles-001",
+              "title": "مذكرة تفاهم مع شركة نجم",
+              "type": "pdf",
+              "path": "assets/مذكرة تفاهم مع شركة نجم.pdf"
+            }
+          ]
         },
         {
           "id": "assistance",
