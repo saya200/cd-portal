@@ -495,9 +495,9 @@ function loadViewer(item) {
     imgViewer.onerror = () => {
       viewerLoading.style.display = 'none';
       noPreview.style.display     = 'flex';
-      downloadLink.href = item.path;
+      downloadLink.href = encodePath(item.path);
     };
-    imgViewer.src = item.path;
+    imgViewer.src = encodePath(item.path);
   } else {
     // PDF عبر iframe
     let timerID = setTimeout(() => {
@@ -515,11 +515,11 @@ function loadViewer(item) {
       clearTimeout(timerID);
       viewerLoading.style.display = 'none';
       noPreview.style.display     = 'flex';
-      downloadLink.href = item.path;
+      downloadLink.href = encodePath(item.path);
     };
 
     // #toolbar=1 يُظهر شريط الأدوات المدمج في المتصفح
-    pdfFrame.src = `${item.path}#toolbar=1&navpanes=0&view=FitH`;
+    pdfFrame.src = `${encodePath(item.path)}#toolbar=1&navpanes=0&view=FitH`;
   }
 }
 
@@ -711,6 +711,10 @@ function renderSearchResults(query, container) {
 // ──────────────────────────────────────────────────────────────
 function escapeAttr(str) {
   return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function encodePath(path) {
+  return path.split('/').map(seg => encodeURIComponent(seg)).join('/');
 }
 
 // ──────────────────────────────────────────────────────────────
