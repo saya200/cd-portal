@@ -610,137 +610,154 @@ body:has(.sections-grid.has-focus) { overflow: hidden; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ════════════════════════════════════════════════════════
-   MODAL OVERLAY
+   PDF VIEWER MODAL
    ════════════════════════════════════════════════════════ */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 30, 20, 0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   z-index: 500;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.28s var(--ease);
+  transition: opacity 0.25s var(--ease);
+  background: #111;
 }
 .modal-overlay.open {
   opacity: 1;
   pointer-events: all;
 }
 
-.modal-box {
-  background: var(--c-white);
+/* الحاوية الرئيسية */
+.pdfjs-wrap {
+  position: relative;
   width: 100%;
-  max-width: 760px;
-  height: 96dvh;
-  max-height: 96dvh;
-  border-radius: var(--r-lg) var(--r-lg) 0 0;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
   overflow: hidden;
-  transform: translateY(40px);
-  transition: transform 0.32s var(--ease);
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
+  background: #111;
 }
-.modal-overlay.open .modal-box { transform: translateY(0); }
 
-/* رأس المودال */
-.modal-head {
+/* ── شريط الأدوات العلوي ─────────────────────────────── */
+.pdf-toolbar {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px 10px 14px;
-  background: linear-gradient(135deg, var(--c-primary-d) 0%, var(--c-primary) 100%);
-  color: white;
-  flex-shrink: 0;
-  min-height: 52px;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 100px;
+  white-space: nowrap;
+  transition: opacity 0.25s, transform 0.25s;
+}
+.pdf-toolbar.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-12px);
+  pointer-events: none;
 }
 
-.modal-close-btn {
-  background: rgba(255,255,255,0.18);
-  border: 1.5px solid rgba(255,255,255,0.28);
-  border-radius: 9px;
-  color: white;
-  width: 36px; height: 36px;
+.pdf-tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
   flex-shrink: 0;
-  transition: background var(--dur-fast);
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.modal-close-btn:active { background: rgba(255,255,255,0.32); }
+.pdf-tool-btn:active { background: rgba(255,255,255,0.28); }
 
-/* Breadcrumb */
-.breadcrumb {
-  flex: 1;
-  min-width: 0;
+#pdfPageInfo {
+  color: rgba(255,255,255,0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 56px;
+  text-align: center;
+}
+
+.pdf-zoom-group {
+  display: flex;
+  gap: 4px;
+}
+
+/* ── أسهم تصفح الصفحات ──────────────────────────────── */
+.pdf-page-btn {
+  position: absolute;
+  z-index: 20;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.42);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  color: #fff;
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  gap: 0;
-  font-size: 0.76rem;
-  line-height: 1.3;
+  justify-content: center;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: opacity 0.25s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
+.pdf-page-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.pdf-page-btn:active:not(:disabled) { background: rgba(0,0,0,0.65); }
+.pdf-page-btn.hidden { opacity: 0; pointer-events: none; }
 
-.breadcrumb-item {
-  opacity: 0.72;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 2;
-  min-width: 0;
-}
-.breadcrumb-item.bc-current { opacity: 1; font-weight: 600; flex-shrink: 0; }
-.breadcrumb-sep { margin: 0 4px; opacity: 0.45; flex-shrink: 0; font-size: 0.7rem; }
+.pdf-page-prev { top: 80px; }
+.pdf-page-next { bottom: 90px; }
 
-/* منطقة العرض */
-.modal-viewer {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-  background: #1e1e1e;
-}
-
-.pdf-frame { width: 100%; height: 100%; border: none; display: block; }
-
-.img-scroll-wrap {
-  width: 100%; height: 100%;
+/* ── منطقة Canvas ───────────────────────────────────── */
+.pdf-canvas-area {
+  position: absolute;
+  inset: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 12px;
+  padding: 80px 12px 90px;
+  background: #1a1a1a;
 }
 
+#pdfCanvas {
+  display: block;
+  box-shadow: 0 4px 28px rgba(0,0,0,0.6);
+  max-width: 100%;
+}
+
+/* ── معاينة الصور ───────────────────────────────────── */
+.img-scroll-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 70px 12px 90px;
+  background: #1a1a1a;
+}
 .img-viewer {
   max-width: 100%;
   height: auto;
-  border-radius: var(--r-sm);
-  box-shadow: 0 4px 20px rgba(0,0,0,.4);
   display: block;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
-.viewer-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  color: rgba(255,255,255,0.6);
-  font-size: 0.875rem;
-}
-.viewer-loading .loading-spinner {
-  border-color: rgba(255,255,255,.15);
-  border-top-color: var(--c-accent);
-}
-
+/* ── لا معاينة ──────────────────────────────────────── */
 .no-preview {
   position: absolute;
   inset: 0;
@@ -749,10 +766,11 @@ body:has(.sections-grid.has-focus) { overflow: hidden; }
   align-items: center;
   justify-content: center;
   gap: 14px;
+  background: #1a1a1a;
   color: rgba(255,255,255,0.55);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   text-align: center;
-  padding: 20px;
+  padding: 20px 20px 100px;
 }
 
 .download-btn {
@@ -761,90 +779,79 @@ body:has(.sections-grid.has-focus) { overflow: hidden; }
   gap: 7px;
   background: var(--c-primary);
   color: white;
-  padding: 10px 24px;
+  padding: 11px 26px;
   border-radius: var(--r-full);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   margin-top: 6px;
   transition: opacity var(--dur-fast);
 }
 .download-btn:active { opacity: 0.8; }
 
-/* شريط تنقل المودال */
-.modal-nav {
-  flex-shrink: 0;
-  background: var(--c-white);
-  border-top: 1px solid var(--c-gray-200);
+/* ── تحميل ──────────────────────────────────────────── */
+.viewer-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #1a1a1a;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.875rem;
+  z-index: 5;
+}
+.viewer-loading .loading-spinner {
+  border-color: rgba(255,255,255,.12);
+  border-top-color: var(--c-accent);
 }
 
-.nav-row {
+/* ── شريط التنقل السفلي (دائماً ظاهر) ──────────────── */
+.pdf-bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 10px;
-  gap: 6px;
-}
-.nav-row-section {
-  border-top: 1px solid var(--c-gray-100);
-  padding: 6px 10px 9px;
+  padding: 14px 16px;
+  background: rgba(0,0,0,0.52);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  gap: 10px;
 }
 
-.nav-arrow-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--c-gray-100);
-  border: 1.5px solid var(--c-border);
-  border-radius: var(--r-full);
-  padding: 8px 14px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--c-primary-d);
+.pdf-nav-btn {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: 100px;
+  padding: 10px 22px;
   white-space: nowrap;
-  transition: background var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast);
+  flex-shrink: 0;
+  transition: background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.nav-arrow-btn:active:not(:disabled) {
-  background: var(--c-gray-200);
-  border-color: var(--c-primary);
-  transform: scale(0.97);
-}
-.nav-arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.pdf-nav-btn:active:not(:disabled) { background: rgba(255,255,255,0.26); }
+.pdf-nav-btn:disabled { opacity: 0.28; cursor: not-allowed; }
 
-.nav-sm {
-  font-size: 0.75rem;
-  padding: 6px 10px;
-  background: transparent;
-  border-color: transparent;
-  color: var(--c-text-muted);
-}
-.nav-sm:active:not(:disabled) {
-  background: var(--c-gray-100);
-  border-color: var(--c-border);
-}
-
-.nav-counter {
-  font-size: 0.8rem;
-  color: var(--c-text-muted);
+.pdf-nav-label {
+  color: rgba(255,255,255,0.85);
+  font-size: 0.95rem;
   font-weight: 600;
   text-align: center;
   flex: 1;
-  white-space: nowrap;
-  background: var(--c-gray-50);
-  padding: 5px 8px;
-  border-radius: var(--r-full);
-  border: 1px solid var(--c-gray-200);
-}
-
-.nav-section-title {
-  font-size: 0.73rem;
-  color: var(--c-text-muted);
-  text-align: center;
-  flex: 1;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 6px;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -853,11 +860,6 @@ body:has(.sections-grid.has-focus) { overflow: hidden; }
 @media (min-width: 480px) {
   .card-title { font-size: 0.98rem; }
   .site-title  { font-size: 1.8rem; }
-}
-
-@media (min-width: 640px) {
-  .modal-overlay { align-items: center; padding: 20px; }
-  .modal-box { border-radius: var(--r-lg); height: 92dvh; max-height: 860px; }
 }
 
 /* ════════════════════════════════════════════════════════
