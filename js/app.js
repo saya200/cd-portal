@@ -9,19 +9,30 @@
 // الحالة العامة
 // ──────────────────────────────────────────────────────────────
 const state = {
-  sections: [],          // مصفوفة الأقسام المحمّلة من JSON
+  sections: [],
 
   focus: {
-    sectionId:  null,    // معرّف القسم النشط في Focus Mode
-    subcatId:   null,    // معرّف الفئة الفرعية المعروضة
+    sectionId: null,
+    subcatId:  null,
   },
 
   modal: {
     open:       false,
-    sectionIdx: -1,      // فهرس القسم الحالي
-    subcatIdx:  -1,      // فهرس الفئة الفرعية (-1 إذا لا توجد)
-    itemIdx:    -1,      // فهرس العنصر الحالي
+    sectionIdx: -1,
+    subcatIdx:  -1,
+    itemIdx:    -1,
   },
+};
+
+// حالة PDF.js
+const pdf = {
+  doc:            null,
+  page:           1,
+  total:          0,
+  scale:          1.5,
+  rendering:      false,
+  toolbarVisible: true,
+  hideTimer:      null,
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -29,22 +40,15 @@ const state = {
 // ──────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
-const sectionsGrid     = $('sectionsGrid');
-const previewModal     = $('previewModal');
-const modalCloseBtn    = $('modalCloseBtn');
-const pdfFrame         = $('pdfFrame');
-const imgViewer        = $('imgViewer');
-const imgScrollWrap    = $('imgScrollWrap');
-const noPreview        = $('noPreview');
-const viewerLoading    = $('viewerLoading');
-const downloadLink     = $('downloadLink');
-const modalBreadcrumb  = $('modalBreadcrumb');
-const itemNavLabel     = $('itemNavLabel');
-const sectionNavLabel  = $('sectionNavLabel');
-const prevItemBtn      = $('prevItemBtn');
-const nextItemBtn      = $('nextItemBtn');
-const prevSectionBtn   = $('prevSectionBtn');
-const nextSectionBtn   = $('nextSectionBtn');
+const sectionsGrid  = $('sectionsGrid');
+const previewModal  = $('previewModal');
+const imgViewer     = $('imgViewer');
+const imgScrollWrap = $('imgScrollWrap');
+const noPreview     = $('noPreview');
+const viewerLoading = $('viewerLoading');
+const downloadLink  = $('downloadLink');
+const prevItemBtn   = $('prevItemBtn');
+const nextItemBtn   = $('nextItemBtn');
 
 // ──────────────────────────────────────────────────────────────
 // أيقونات الأقسام (SVG)
@@ -102,6 +106,7 @@ const CHEVRON_R = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none"
 // التهيئة
 // ──────────────────────────────────────────────────────────────
 async function init() {
+  initPDFJS();
   setupLogoFallback();
   setupModalEvents();
   setupKeyboard();
@@ -177,7 +182,6 @@ function buildSectionCard(section, idx) {
     </div>
   `;
 
-  // فتح القسم
   const head = card.querySelector('.card-head');
   head.addEventListener('click', () => {
     if (!sectionsGrid.classList.contains('has-focus')) {
@@ -213,7 +217,6 @@ function buildCardBodyHTML(section, sectionIdx) {
       ${CHEVRON_L} العودة للأقسام
     </button>`;
 
-  // رابط خارجي
   if (section.isExternalLink) {
     const hasURL = !!section.url;
     const tag    = hasURL ? 'a' : 'span';
@@ -223,9 +226,7 @@ function buildCardBodyHTML(section, sectionIdx) {
     return `
       ${back}
       <div class="ext-link-body">
-        ${hasURL
-          ? ''
-          : `<p class="ext-link-note">الرابط سيُضاف قريباً</p>`}
+        ${hasURL ? '' : `<p class="ext-link-note">الرابط سيُضاف قريباً</p>`}
         <${tag} class="ext-link-btn ${hasURL ? '' : 'link-disabled'}" ${attrs}>
           ${SECTION_ICONS['incident-platform']}
           ${hasURL ? 'فتح المنصة' : 'غير متاح حالياً'}
@@ -233,7 +234,6 @@ function buildCardBodyHTML(section, sectionIdx) {
       </div>`;
   }
 
-  // أقسام فرعية
   if (section.hasSubcategories) {
     const subs = section.subcategories || [];
     return `
@@ -253,7 +253,6 @@ function buildCardBodyHTML(section, sectionIdx) {
            </div>`}`;
   }
 
-  // عناصر مباشرة
   const items = section.items || [];
   return `
     ${back}
@@ -296,7 +295,6 @@ function itemRowHTML(item, itemIdx, subcatIdx) {
 function bindCardEvents(card, section, sectionIdx) {
   const body = card.querySelector(`#body-${section.id}`);
 
-  // زر الرجوع للقائمة الرئيسية
   body.addEventListener('click', e => {
     if (e.target.closest('.js-back-main')) {
       e.stopPropagation();
@@ -304,7 +302,6 @@ function bindCardEvents(card, section, sectionIdx) {
     }
   });
 
-  // أزرار الفئات الفرعية
   body.addEventListener('click', e => {
     const btn = e.target.closest('.js-subcat-btn');
     if (btn) {
@@ -313,16 +310,11 @@ function bindCardEvents(card, section, sectionIdx) {
     }
   });
 
-  // صفوف العناصر
   body.addEventListener('click', e => {
     const row = e.target.closest('.js-item-row');
     if (row) {
       e.stopPropagation();
-      openModal(
-        sectionIdx,
-        parseInt(row.dataset.subcatIdx),
-        parseInt(row.dataset.itemIdx)
-      );
+      openModal(sectionIdx, parseInt(row.dataset.subcatIdx), parseInt(row.dataset.itemIdx));
     }
   });
 
@@ -353,7 +345,6 @@ function showSubcatItems(section, sectionIdx, subcatId, body) {
          </div>`
       : emptyStateHTML()}`;
 
-  // رجوع للفئات الفرعية
   body.querySelector('.js-back-subcats').addEventListener('click', e => {
     e.stopPropagation();
     state.focus.subcatId = null;
@@ -361,7 +352,6 @@ function showSubcatItems(section, sectionIdx, subcatId, body) {
     bindCardBodyOnly(body, section, sectionIdx);
   });
 
-  // فتح عنصر
   body.addEventListener('click', e => {
     const row = e.target.closest('.js-item-row');
     if (row) {
@@ -411,6 +401,115 @@ function defocusSection() {
 }
 
 // ──────────────────────────────────────────────────────────────
+// PDF.js – التهيئة والعرض
+// ──────────────────────────────────────────────────────────────
+function initPDFJS() {
+  if (typeof pdfjsLib === 'undefined') return;
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function calcInitialScale() {
+  const w = window.innerWidth;
+  if (w < 480) return 1.2;
+  if (w < 768) return 1.5;
+  return 2.0;
+}
+
+async function loadPDF(path) {
+  const url = encodePath(path);
+  showViewerPanel('loading');
+  pdf.page  = 1;
+  pdf.scale = calcInitialScale();
+  if (pdf.doc) { try { pdf.doc.destroy(); } catch {} pdf.doc = null; }
+
+  try {
+    pdf.doc   = await pdfjsLib.getDocument(url).promise;
+    pdf.total = pdf.doc.numPages;
+    await renderCurrentPage();
+    showViewerPanel('canvas');
+    $('pdfDownloadBtn').href     = url;
+    $('pdfDownloadBtn').download = path.split('/').pop();
+    setToolbarVisible(true);
+    resetHideTimer();
+  } catch {
+    showViewerPanel('noprev');
+    downloadLink.href = url;
+  }
+}
+
+async function renderCurrentPage() {
+  if (!pdf.doc || pdf.rendering) return;
+  pdf.rendering = true;
+  try {
+    const page     = await pdf.doc.getPage(pdf.page);
+    const viewport = page.getViewport({ scale: pdf.scale });
+    const canvas   = $('pdfCanvas');
+    const ctx      = canvas.getContext('2d');
+    canvas.width   = viewport.width;
+    canvas.height  = viewport.height;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+  } finally {
+    pdf.rendering = false;
+  }
+  updatePDFControls();
+}
+
+function updatePDFControls() {
+  $('pdfPageInfo').textContent = pdf.doc ? `${pdf.page} / ${pdf.total}` : '— / —';
+  $('pdfPrevPage').disabled    = pdf.page <= 1;
+  $('pdfNextPage').disabled    = pdf.page >= pdf.total;
+}
+
+async function changePage(delta) {
+  const next = pdf.page + delta;
+  if (!pdf.doc || next < 1 || next > pdf.total) return;
+  pdf.page = next;
+  await renderCurrentPage();
+  setToolbarVisible(true);
+  resetHideTimer();
+}
+
+async function changeZoom(delta) {
+  pdf.scale = Math.min(4, Math.max(0.5, pdf.scale + delta));
+  await renderCurrentPage();
+}
+
+function setToolbarVisible(visible) {
+  pdf.toolbarVisible = visible;
+  const toolbar  = $('pdfToolbar');
+  const prevPage = $('pdfPrevPage');
+  const nextPage = $('pdfNextPage');
+  if (visible) {
+    toolbar.classList.remove('hidden');
+    prevPage.classList.remove('hidden');
+    nextPage.classList.remove('hidden');
+  } else {
+    toolbar.classList.add('hidden');
+    prevPage.classList.add('hidden');
+    nextPage.classList.add('hidden');
+  }
+}
+
+function toggleToolbar() {
+  setToolbarVisible(!pdf.toolbarVisible);
+  if (pdf.toolbarVisible) resetHideTimer();
+  else clearTimeout(pdf.hideTimer);
+}
+
+function resetHideTimer() {
+  clearTimeout(pdf.hideTimer);
+  pdf.hideTimer = setTimeout(() => setToolbarVisible(false), 3500);
+}
+
+function showViewerPanel(which) {
+  $('pdfCanvasArea').style.display  = which === 'canvas'  ? 'flex'  : 'none';
+  $('imgScrollWrap').style.display  = which === 'image'   ? 'flex'  : 'none';
+  $('noPreview').style.display      = which === 'noprev'  ? 'flex'  : 'none';
+  $('viewerLoading').style.display  = which === 'loading' ? 'flex'  : 'none';
+}
+
+// ──────────────────────────────────────────────────────────────
 // المودال – الفتح والإغلاق
 // ──────────────────────────────────────────────────────────────
 function openModal(sectionIdx, subcatIdx, itemIdx) {
@@ -423,8 +522,10 @@ function openModal(sectionIdx, subcatIdx, itemIdx) {
 function closeModal() {
   previewModal.classList.remove('open');
   document.body.classList.remove('modal-open');
-  // إيقاف التحميل
-  pdfFrame.src     = 'about:blank';
+  clearTimeout(pdf.hideTimer);
+  if (pdf.doc) { try { pdf.doc.destroy(); } catch {} pdf.doc = null; }
+  const canvas = $('pdfCanvas');
+  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
   imgViewer.src    = '';
   state.modal.open = false;
 }
@@ -449,139 +550,39 @@ function renderModal() {
   const items = getActiveItems();
   const item  = items[itemIdx];
 
-  // ── Breadcrumb ────────────────────────────────────────────
-  const crumbs = [{ text: section.title }];
-  if (subcatIdx >= 0) {
-    crumbs.push({ text: section.subcategories[subcatIdx].title });
+  // تحديث اسم الفئة في الشريط السفلي
+  let navLabel = section.title;
+  if (subcatIdx >= 0 && section.subcategories?.[subcatIdx]) {
+    navLabel = section.subcategories[subcatIdx].title;
   }
-  if (item) crumbs.push({ text: item.title, current: true });
+  $('pdfNavLabel').textContent = navLabel;
 
-  modalBreadcrumb.innerHTML = crumbs.map((c, i) => `
-    ${i > 0 ? `<span class="breadcrumb-sep">›</span>` : ''}
-    <span class="breadcrumb-item ${c.current ? 'bc-current' : ''}">${c.text}</span>
-  `).join('');
-
-  // ── عارض الملف ───────────────────────────────────────────
-  loadViewer(item);
-
-  // ── تنقل بين العناصر ─────────────────────────────────────
+  // تفعيل/تعطيل أزرار التنقل بين الملفات
   const total = items.length;
-  itemNavLabel.textContent = total > 0 ? `${itemIdx + 1} / ${total}` : '—';
   prevItemBtn.disabled = itemIdx <= 0;
   nextItemBtn.disabled = itemIdx >= total - 1;
 
-  // ── تنقل بين الفئات / الأقسام ────────────────────────────
-  renderSectionNav(section, sectionIdx, subcatIdx);
+  // تحميل الملف
+  loadViewer(item);
 }
 
 function loadViewer(item) {
-  // إخفاء كل شيء وإظهار التحميل
-  pdfFrame.style.display    = 'none';
-  imgScrollWrap.style.display = 'none';
-  noPreview.style.display   = 'none';
-  viewerLoading.style.display = 'flex';
-
   if (!item || !item.path) {
-    viewerLoading.style.display = 'none';
-    noPreview.style.display     = 'flex';
+    showViewerPanel('noprev');
     return;
   }
 
   if (item.type === 'image') {
-    imgViewer.onload = () => {
-      viewerLoading.style.display  = 'none';
-      imgScrollWrap.style.display  = 'flex';
-    };
+    showViewerPanel('loading');
+    imgViewer.onload = () => showViewerPanel('image');
     imgViewer.onerror = () => {
-      viewerLoading.style.display = 'none';
-      noPreview.style.display     = 'flex';
+      showViewerPanel('noprev');
       downloadLink.href = encodePath(item.path);
     };
     imgViewer.src = encodePath(item.path);
   } else {
-    // PDF عبر iframe
-    let timerID = setTimeout(() => {
-      viewerLoading.style.display = 'none';
-      pdfFrame.style.display      = 'block';
-    }, 1800);
-
-    pdfFrame.onload = () => {
-      clearTimeout(timerID);
-      viewerLoading.style.display = 'none';
-      pdfFrame.style.display      = 'block';
-    };
-
-    pdfFrame.onerror = () => {
-      clearTimeout(timerID);
-      viewerLoading.style.display = 'none';
-      noPreview.style.display     = 'flex';
-      downloadLink.href = encodePath(item.path);
-    };
-
-    // #toolbar=1 يُظهر شريط الأدوات المدمج في المتصفح
-    pdfFrame.src = `${encodePath(item.path)}#toolbar=1&navpanes=0&view=FitH`;
+    loadPDF(item.path);
   }
-}
-
-// ── تنقل مستوى الفئات / الأقسام ───────────────────────────────
-function renderSectionNav(section, sectionIdx, subcatIdx) {
-  if (section.hasSubcategories && subcatIdx >= 0) {
-    // التنقل بين الفئات الفرعية
-    const subs     = section.subcategories || [];
-    const hasPrev  = subcatIdx > 0;
-    const hasNext  = subcatIdx < subs.length - 1;
-
-    sectionNavLabel.textContent = 'الفئات الفرعية';
-    prevSectionBtn.disabled = !hasPrev;
-    nextSectionBtn.disabled = !hasNext;
-
-    $('prevSectionLabel').textContent = hasPrev ? subs[subcatIdx - 1].title : 'السابقة';
-    $('nextSectionLabel').textContent = hasNext ? subs[subcatIdx + 1].title : 'التالية';
-
-    prevSectionBtn.onclick = () => jumpToSubcat(sectionIdx, subcatIdx - 1);
-    nextSectionBtn.onclick = () => jumpToSubcat(sectionIdx, subcatIdx + 1);
-  } else {
-    // التنقل بين الأقسام (غير الروابط الخارجية)
-    const navigable = state.sections
-      .map((s, i) => ({ s, i }))
-      .filter(({ s }) => !s.isExternalLink);
-
-    const pos      = navigable.findIndex(({ i }) => i === sectionIdx);
-    const hasPrev  = pos > 0;
-    const hasNext  = pos < navigable.length - 1;
-
-    sectionNavLabel.textContent = 'الأقسام';
-    prevSectionBtn.disabled = !hasPrev;
-    nextSectionBtn.disabled = !hasNext;
-
-    $('prevSectionLabel').textContent = hasPrev ? navigable[pos - 1].s.title : 'السابق';
-    $('nextSectionLabel').textContent = hasNext ? navigable[pos + 1].s.title : 'التالي';
-
-    prevSectionBtn.onclick = () => {
-      if (!hasPrev) return;
-      jumpToSection(navigable[pos - 1].i);
-    };
-    nextSectionBtn.onclick = () => {
-      if (!hasNext) return;
-      jumpToSection(navigable[pos + 1].i);
-    };
-  }
-}
-
-function jumpToSubcat(sectionIdx, subcatIdx) {
-  state.modal.sectionIdx = sectionIdx;
-  state.modal.subcatIdx  = subcatIdx;
-  state.modal.itemIdx    = 0;
-  renderModal();
-}
-
-function jumpToSection(sectionIdx) {
-  const sec = state.sections[sectionIdx];
-  if (!sec) return;
-  state.modal.sectionIdx = sectionIdx;
-  state.modal.subcatIdx  = sec.hasSubcategories ? 0 : -1;
-  state.modal.itemIdx    = 0;
-  renderModal();
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -599,13 +600,27 @@ function navigateItem(dir) {
 // إعداد أحداث المودال
 // ──────────────────────────────────────────────────────────────
 function setupModalEvents() {
-  modalCloseBtn.addEventListener('click', closeModal);
-
-  // إغلاق بالضغط خارج الصندوق
+  // إغلاق
+  $('pdfCloseBtn').addEventListener('click', closeModal);
   previewModal.addEventListener('click', e => {
     if (e.target === previewModal) closeModal();
   });
 
+  // تبديل الشريط بالنقر على منطقة Canvas
+  $('pdfCanvasArea').addEventListener('click', e => {
+    if (e.target.closest('button, a')) return;
+    toggleToolbar();
+  });
+
+  // تصفح الصفحات
+  $('pdfPrevPage').addEventListener('click', () => changePage(-1));
+  $('pdfNextPage').addEventListener('click', () => changePage(1));
+
+  // الزوم
+  $('pdfZoomOut').addEventListener('click', () => changeZoom(-0.25));
+  $('pdfZoomIn').addEventListener('click',  () => changeZoom(0.25));
+
+  // التنقل بين الملفات
   prevItemBtn.addEventListener('click', () => navigateItem(-1));
   nextItemBtn.addEventListener('click', () => navigateItem(1));
 }
@@ -616,18 +631,29 @@ function setupKeyboard() {
     if (!state.modal.open) return;
 
     switch (e.key) {
-      case 'Escape':      closeModal();       break;
-      // RTL: السهم الأيمن = السابق (في العربية)
-      case 'ArrowRight':  navigateItem(-1);   break;
-      case 'ArrowLeft':   navigateItem(1);    break;
-      case 'ArrowUp':     navigateItem(-1);   break;
-      case 'ArrowDown':   navigateItem(1);    break;
+      case 'Escape':
+        closeModal();
+        break;
+      case 'ArrowUp':
+        if (pdf.doc) changePage(-1);
+        else navigateItem(-1);
+        break;
+      case 'ArrowDown':
+        if (pdf.doc) changePage(1);
+        else navigateItem(1);
+        break;
+      case 'ArrowRight':
+        navigateItem(-1);
+        break;
+      case 'ArrowLeft':
+        navigateItem(1);
+        break;
     }
   });
 }
 
 // ──────────────────────────────────────────────────────────────
-// البحث (جاهز للتفعيل)
+// البحث
 // ──────────────────────────────────────────────────────────────
 function setupSearch() {
   const searchInput   = $('searchInput');
@@ -651,7 +677,7 @@ function setupSearch() {
 }
 
 function renderSearchResults(query, container) {
-  const q = query.toLowerCase();
+  const q    = query.toLowerCase();
   const hits = [];
 
   state.sections.forEach((sec, si) => {
@@ -661,9 +687,7 @@ function renderSearchResults(query, container) {
       items.forEach((item, ii) => {
         if (item.title.toLowerCase().includes(q)) {
           hits.push({
-            sectionIdx: si,
-            subcatIdx,
-            itemIdx: ii,
+            sectionIdx: si, subcatIdx, itemIdx: ii,
             title: item.title,
             path: [sec.title, subcatTitle].filter(Boolean).join(' › '),
           });
@@ -697,17 +721,13 @@ function renderSearchResults(query, container) {
 
   container.querySelectorAll('.search-result-item').forEach(el => {
     el.addEventListener('click', () => {
-      openModal(
-        parseInt(el.dataset.si),
-        parseInt(el.dataset.sub),
-        parseInt(el.dataset.ii)
-      );
+      openModal(parseInt(el.dataset.si), parseInt(el.dataset.sub), parseInt(el.dataset.ii));
     });
   });
 }
 
 // ──────────────────────────────────────────────────────────────
-// أداة مساعدة
+// أدوات مساعدة
 // ──────────────────────────────────────────────────────────────
 function escapeAttr(str) {
   return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
