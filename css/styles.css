@@ -43,11 +43,6 @@ html {
 body {
   font-family: var(--font);
   background-color: var(--c-bg);
-  background-image: url('../assets/bg.jpg');
-  background-size: 80%;
-  background-repeat: no-repeat;
-  background-position: bottom center;
-  background-attachment: fixed;
   color: var(--c-text);
   direction: rtl;
   min-height: 100dvh;
