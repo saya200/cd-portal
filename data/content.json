@@ -62,7 +62,14 @@
       "title": "النماذج",
       "hasSubcategories": false,
       "isExternalLink": false,
-      "items": []
+      "items": [
+        {
+          "id": "form-001",
+          "title": "نماذج تقارير الحوادث",
+          "type": "pdf",
+          "path": "files/نماذج تقارير الحوادث.pdf"
+        }
+      ]
     },
 
     {
