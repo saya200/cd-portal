@@ -42,7 +42,11 @@ html {
 
 body {
   font-family: var(--font);
-  background: var(--c-bg);
+  background-color: var(--c-bg);
+  background-image: url('../assets/bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--c-text);
   direction: rtl;
   min-height: 100dvh;
@@ -57,7 +61,7 @@ button { font-family: var(--font); cursor: pointer; }
    HEADER
    ════════════════════════════════════════════════════════ */
 .site-header {
-  background: var(--c-bg);
+  background: transparent;
   padding: 32px 20px 24px;
   text-align: center;
 }
@@ -177,6 +181,7 @@ button { font-family: var(--font); cursor: pointer; }
   padding: 4px 14px 60px;
   max-width: 620px;
   margin: 0 auto;
+  background: transparent;
 }
 
 .sections-grid {
