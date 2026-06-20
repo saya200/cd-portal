@@ -44,7 +44,8 @@ body {
   font-family: var(--font);
   background-color: var(--c-bg);
   background-image: url('../assets/bg.jpg');
-  background-size: 60%;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
   background-attachment: fixed;
   color: var(--c-text);
