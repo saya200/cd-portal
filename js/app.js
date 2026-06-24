@@ -406,7 +406,7 @@ function defocusSection() {
 function initPDFJS() {
   if (typeof pdfjsLib === 'undefined') return;
   pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.js';
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 
 function calcInitialScale() {
