@@ -3,36 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <meta name="theme-color" content="#1a5c3a">
+  <meta name="theme-color" content="#0f3d28">
   <meta name="description" content="منصة التحقيق – الإدارة العامة للدفاع المدني بمنطقة حائل">
   <title>منصة التحقيق – الدفاع المدني حائل</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-  <!-- ══════════════════ HEADER ══════════════════ -->
-  <header class="site-header">
-    <div class="header-inner">
-      <div class="header-logo-wrap">
-        <img id="headerLogo" src="assets/logo.jpg" alt="شعار الدفاع المدني" class="header-logo-img" loading="eager" width="120" height="120">
-        <div class="header-logo-fallback" id="logoFallback">
-          <svg viewBox="0 0 60 70" fill="none" xmlns="http://www.w3.org/2000/svg" width="80" height="94">
-            <path d="M30 3L5 15v18c0 15.2 10.7 29.4 25 33C44.3 62.4 55 48.2 55 33V15L30 3z"
-                  fill="rgba(26,92,58,0.12)" stroke="rgba(26,92,58,0.35)" stroke-width="1.5"/>
-            <path d="M30 12c-3.3 4.2-5 8-5 12 0 3 1 5.5 3 7.5 1 1 2 1.5 2 3s-1 2-2 2.5"
-                  stroke="#1a5c3a" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-            <circle cx="30" cy="42" r="2" fill="#1a5c3a"/>
-          </svg>
+  <!-- ══════════════════ HOME ══════════════════ -->
+  <div class="home-view" id="homeView">
+
+    <!-- الهيدر -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="header-logo-wrap">
+          <img id="headerLogo" src="assets/logo.jpg" alt="شعار الدفاع المدني"
+               class="header-logo-img" loading="eager" width="84" height="84">
+          <div class="header-logo-fallback" id="logoFallback">
+            <svg viewBox="0 0 60 70" fill="none" xmlns="http://www.w3.org/2000/svg" width="74" height="86">
+              <path d="M30 3L5 15v18c0 15.2 10.7 29.4 25 33C44.3 62.4 55 48.2 55 33V15L30 3z"
+                    fill="rgba(255,255,255,0.10)" stroke="rgba(61,184,138,0.6)" stroke-width="1.5"/>
+              <path d="M30 12c-3.3 4.2-5 8-5 12 0 3 1 5.5 3 7.5 1 1 2 1.5 2 3s-1 2-2 2.5"
+                    stroke="#3db88a" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+              <circle cx="30" cy="42" r="2" fill="#3db88a"/>
+            </svg>
+          </div>
+        </div>
+        <div class="header-text">
+          <h1 class="site-title">منصة التحقيق الشاملة</h1>
+          <p class="site-subtitle">الإدارة العامة للدفاع المدني بمدينة حائل</p>
+          <ul class="header-bullets">
+            <li><span class="bullet-dot"></span>تحديث مستمر بأحدث التعاميم والأنظمة</li>
+            <li><span class="bullet-dot"></span>وصول سريع للمستندات في أي وقت</li>
+            <li><span class="bullet-dot"></span>مرجع فوري في موقع الحادث</li>
+          </ul>
         </div>
       </div>
-      <h1 class="site-title">منصة التحقيق</h1>
-    </div>
+    </header>
 
-    <!-- شريط البحث – مخفي. لتفعيله: احذف style="display:none" -->
-    <div class="search-wrap" id="searchWrap" style="display:none">
-      <div class="search-box">
+    <!-- شريط البحث -->
+    <div class="search-wrap" id="searchWrap">
+      <div class="search-box" id="searchBox">
         <span class="search-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </span>
@@ -40,104 +56,102 @@
                placeholder="ابحث في جميع الأقسام والملفات..."
                autocomplete="off" autocorrect="off" spellcheck="false">
         <button class="search-clear" id="searchClear" aria-label="مسح البحث" style="display:none">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
       </div>
-      <div class="search-results" id="searchResults" role="list"></div>
     </div>
-  </header>
 
-  <!-- ══════════════════ MAIN ══════════════════ -->
-  <main class="site-main" id="siteMain">
-    <div class="sections-grid" id="sectionsGrid" role="list">
-      <div class="init-loading">
-        <div class="loading-spinner"></div>
-        <p>جارٍ التحميل…</p>
-      </div>
-    </div>
-  </main>
-
-  <!-- ══════════════════ PDF VIEWER MODAL ══════════════════ -->
-  <div class="modal-overlay" id="previewModal"
-       role="dialog" aria-modal="true" aria-label="معاينة الملف">
-
-    <div class="pdfjs-wrap" id="pdfjsWrap">
-
-      <!-- شريط الأدوات العلوي (يظهر/يختفي بالنقر) -->
-      <div class="pdf-toolbar" id="pdfToolbar">
-        <button class="pdf-tool-btn" id="pdfCloseBtn" aria-label="إغلاق">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-        <span id="pdfPageInfo">— / —</span>
-        <div class="pdf-zoom-group">
-          <button class="pdf-tool-btn" id="pdfZoomOut" aria-label="تصغير">−</button>
-          <button class="pdf-tool-btn" id="pdfZoomIn"  aria-label="تكبير">+</button>
+    <!-- المحتوى الرئيسي -->
+    <main class="site-main" id="siteMain">
+      <div class="sections-grid" id="sectionsGrid" role="list">
+        <div class="init-loading">
+          <div class="loading-spinner"></div>
+          <p>جارٍ التحميل…</p>
         </div>
-        <a class="pdf-tool-btn" id="pdfDownloadBtn" href="#" download aria-label="تحميل">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-        </a>
       </div>
+      <div id="extrasArea"></div>
+      <div class="search-results" id="searchResults" role="list" style="display:none"></div>
+    </main>
+  </div>
 
-      <!-- سهم الصفحة السابقة (فوق) -->
-      <button class="pdf-page-btn pdf-page-prev" id="pdfPrevPage" aria-label="الصفحة السابقة">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
-          <polyline points="18 15 12 9 6 15"/>
+  <!-- ══════════════════ SECTION SCREEN ══════════════════ -->
+  <div class="section-screen" id="sectionScreen" style="display:none"></div>
+
+  <!-- ══════════════════ BOOKMARKS SCREEN ══════════════════ -->
+  <div class="section-screen" id="bookmarksScreen" style="display:none"></div>
+
+  <!-- ══════════════════ PDF VIEWER ══════════════════ -->
+  <div class="pdf-viewer" id="pdfViewer" style="display:none">
+    <div class="pv-topbar">
+      <button class="pv-icon-btn" id="pvClose" aria-label="إغلاق">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <div class="pv-title" id="pvTitle"></div>
+      <button class="pv-icon-btn" id="pvBookmark" aria-label="حفظ الملف">
+        <svg id="pvBookmarkIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+      </button>
+      <a class="pv-icon-btn" id="pvDownload" href="#" download aria-label="تحميل">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </a>
+      <span class="pv-counter" id="pvCounter">—</span>
+    </div>
+
+    <div class="pv-main" id="pvMain">
+      <button class="pv-page-btn pv-prev" id="pvPrevPage" aria-label="الصفحة السابقة">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+      <button class="pv-page-btn pv-next" id="pvNextPage" aria-label="الصفحة التالية">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
 
-      <!-- سهم الصفحة التالية (تحت) -->
-      <button class="pdf-page-btn pdf-page-next" id="pdfNextPage" aria-label="الصفحة التالية">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-
-      <!-- منطقة Canvas للـ PDF -->
-      <div class="pdf-canvas-area" id="pdfCanvasArea" style="display:none">
-        <canvas id="pdfCanvas"></canvas>
+      <div class="pv-canvas-wrap" id="pvCanvasWrap" style="display:none">
+        <canvas id="pvCanvas"></canvas>
       </div>
-
-      <!-- معاينة الصور -->
-      <div class="img-scroll-wrap" id="imgScrollWrap" style="display:none">
-        <img id="imgViewer" class="img-viewer" alt="معاينة الصورة">
+      <div class="pv-img-wrap" id="pvImgWrap" style="display:none">
+        <img id="pvImg" class="pv-img" alt="معاينة الصورة">
       </div>
-
-      <!-- لا معاينة متاحة -->
-      <div class="no-preview" id="noPreview" style="display:none">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
-             stroke="rgba(255,255,255,0.4)" stroke-width="1.4">
+      <div class="pv-loading" id="pvLoading">
+        <div class="loading-spinner"></div>
+        <p>جارٍ تحميل الملف…</p>
+      </div>
+      <div class="pv-noprev" id="pvNoPrev" style="display:none">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.4">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
         </svg>
         <p>لا تتوفر معاينة</p>
-        <a id="downloadLink" class="download-btn" href="#" download target="_blank">تحميل الملف</a>
+        <a id="pvNoPrevDownload" class="download-btn" href="#" download target="_blank">تحميل الملف</a>
       </div>
+    </div>
 
-      <!-- تحميل -->
-      <div class="viewer-loading" id="viewerLoading">
-        <div class="loading-spinner"></div>
-        <p>جارٍ تحميل الملف…</p>
-      </div>
-
-      <!-- شريط التنقل السفلي (دائماً ظاهر) -->
-      <div class="pdf-bottom-nav" id="pdfBottomNav">
-        <button class="pdf-nav-btn" id="prevItemBtn" aria-label="الملف السابق">السابق ›</button>
-        <span class="pdf-nav-label" id="pdfNavLabel">—</span>
-        <button class="pdf-nav-btn" id="nextItemBtn" aria-label="الملف التالي">‹ التالي</button>
-      </div>
-
+    <div class="pv-docnav" id="pvDocNav" style="display:none">
+      <button class="pv-doc-btn pv-doc-prev" id="pvPrevDoc">
+        <span class="pv-doc-label">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3db88a" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          السابق
+        </span>
+        <span class="pv-doc-title" id="pvPrevDocTitle"></span>
+      </button>
+      <button class="pv-doc-btn pv-doc-next" id="pvNextDoc">
+        <span class="pv-doc-label">
+          التالي
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3db88a" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </span>
+        <span class="pv-doc-title" id="pvNextDocTitle"></span>
+      </button>
     </div>
   </div>
 
