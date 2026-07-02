@@ -30,6 +30,62 @@ const pdf = {
 };
 
 const BM_KEY = 'cd-portal-bm';
+const VIEW_KEY = 'cd-portal-view';
+
+// عرض الأقسام: شبكة (ثمبنيل) أو قائمة (نصي)
+state.viewMode = 'grid';
+state.currentSection = null;
+
+// كاش الثمبنيل في الذاكرة (path → dataURL) + مرآة لـ IndexedDB
+state.thumbs = new Map();
+
+// ── طابور توليد الثمبنيل (حدّ تزامن) ──
+const THUMB_CONCURRENCY = 2;
+const THUMB_WIDTH = 300;            // عرض الرسم بالبكسل (وضوح على الشاشات عالية الكثافة)
+const thumbQueue = [];
+let thumbActive = 0;
+let thumbObserver = null;
+
+// ── IndexedDB لحفظ الثمبنيل بين الزيارات ──
+const IDB_NAME = 'cd-portal-thumbs';
+const IDB_STORE = 'thumbs';
+let idbPromise = null;
+
+function idbOpen() {
+  if (idbPromise) return idbPromise;
+  idbPromise = new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+  return idbPromise;
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const rq = tx.objectStore(IDB_STORE).get(key);
+      rq.onsuccess = () => resolve(rq.result || null);
+      rq.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+}
+async function idbPut(key, val) {
+  const db = await idbOpen();
+  if (!db) return;
+  try {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(val, key);
+  } catch {}
+}
 
 // ───────────────────────────────────────────────────────
 // مراجع DOM
@@ -67,6 +123,9 @@ const ICON_BIG_BM = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"
 const CHEV_R = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>`;
 const CHEV_D = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 const ICON_CLOSE = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+const ICON_GRID = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`;
+const ICON_LIST = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+const ICON_FILE_THUMB = `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
 
 // ───────────────────────────────────────────────────────
 // أدوات
@@ -105,6 +164,7 @@ function countLabel(section) {
 async function init() {
   initPDFJS();
   loadBookmarks();
+  loadViewMode();
   setupLogoFallback();
   setupSearch();
   setupViewerEvents();
@@ -317,42 +377,81 @@ function renderSearch(query) {
 // ───────────────────────────────────────────────────────
 function openSection(sec) {
   if (sec.isExternalLink) return;
-  if (sec.hasSubcategories) {
-    sectionScreen.innerHTML = sectionShellHTML(sec, getCount(sec)) + `
-      <div class="ss-body"><div class="accordion-list" id="ssAccordion"></div></div>`;
-    renderAccordions(sec);
-  } else {
-    const items = sec.items || [];
-    sectionScreen.innerHTML = sectionShellHTML(sec, items.length) + `
-      <div class="ss-body">${
-        items.length
-          ? `<div class="ss-list">${items.map((it, i) => itemRowHTML(it, i)).join('')}</div>`
-          : emptyHTML('لا توجد ملفات في هذا القسم بعد')
-      }</div>`;
-    bindItemRows(sectionScreen, items);
-  }
-
+  state.currentSection = sec;
+  sectionScreen.innerHTML = sectionShellHTML(sec, getCount(sec), true) +
+    `<div class="ss-body" id="ssBody"></div>`;
+  renderSectionBody(sec);
   bindSectionClose(sectionScreen);
+  bindViewToggle(sectionScreen);
   showScreen(sectionScreen);
 }
 
-function sectionShellHTML(sec, count) {
+function sectionShellHTML(sec, count, withToggle) {
   return `
     <div class="ss-header">
       <button class="ss-close" aria-label="رجوع">${ICON_CLOSE}</button>
       <div class="ss-icon">${ICONS[sec.id] || ICONS.forms}</div>
       <span class="ss-title">${escapeHtml(sec.title)}</span>
-      <span class="ss-count">${arNum(count)} ملف</span>
+      ${withToggle ? viewToggleHTML() : `<span class="ss-count">${arNum(count)} ملف</span>`}
     </div>`;
 }
 
-function renderAccordions(sec) {
+function viewToggleHTML() {
+  return `
+    <div class="view-toggle" id="viewToggle" role="group" aria-label="طريقة العرض">
+      <button class="vt-btn ${state.viewMode === 'grid' ? 'active' : ''}" data-mode="grid" aria-label="عرض شبكة">${ICON_GRID}</button>
+      <button class="vt-btn ${state.viewMode === 'list' ? 'active' : ''}" data-mode="list" aria-label="عرض قائمة">${ICON_LIST}</button>
+    </div>`;
+}
+
+function bindViewToggle(screen) {
+  const tg = screen.querySelector('#viewToggle');
+  if (!tg) return;
+  tg.querySelectorAll('.vt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode;
+      if (mode === state.viewMode) return;
+      state.viewMode = mode;
+      saveViewMode();
+      tg.querySelectorAll('.vt-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      renderSectionBody(state.currentSection, captureOpenAccordions());
+    });
+  });
+}
+
+function captureOpenAccordions() {
+  const set = new Set();
+  sectionScreen.querySelectorAll('.accordion').forEach((a, i) => { if (a.classList.contains('open')) set.add(i); });
+  return set;
+}
+
+// يبني جسم القسم حسب نمط العرض الحالي
+function renderSectionBody(sec, openIdx) {
+  const body = sectionScreen.querySelector('#ssBody');
+  if (!body) return;
+
+  if (sec.hasSubcategories) {
+    const cats = sec.subcategories || [];
+    if (!cats.length) { body.innerHTML = emptyHTML('لا توجد فئات بعد'); return; }
+    body.innerHTML = `<div class="accordion-list" id="ssAccordion"></div>`;
+    renderAccordions(sec, openIdx);
+  } else {
+    const items = sec.items || [];
+    if (!items.length) { body.innerHTML = emptyHTML('لا توجد ملفات في هذا القسم بعد'); return; }
+    body.innerHTML = '';
+    const inner = document.createElement('div');
+    body.appendChild(inner);
+    renderItems(inner, items);
+  }
+}
+
+function renderAccordions(sec, openIdx) {
   const wrap = $('ssAccordion');
   const cats = sec.subcategories || [];
-  if (!cats.length) { wrap.innerHTML = emptyHTML('لا توجد فئات بعد'); return; }
+  const openSet = openIdx && openIdx.size ? openIdx : new Set([0]);
 
   wrap.innerHTML = cats.map((cat, i) => `
-    <div class="accordion ${i === 0 ? 'open' : ''}" style="animation-delay:${i * 50}ms">
+    <div class="accordion ${openSet.has(i) ? 'open' : ''}" style="animation-delay:${i * 50}ms">
       <button class="accordion-head">
         <span class="accordion-title">${escapeHtml(cat.title)}</span>
         <span class="accordion-right">
@@ -360,21 +459,141 @@ function renderAccordions(sec) {
           <span class="accordion-chev">${CHEV_D}</span>
         </span>
       </button>
-      <div class="accordion-body">
-        ${(cat.items || []).length
-          ? cat.items.map((it, ii) => itemRowHTML(it, ii)).join('')
-          : emptyHTML('لا توجد ملفات')}
-      </div>
+      <div class="accordion-body"></div>
     </div>`).join('');
 
   wrap.querySelectorAll('.accordion').forEach((acc, ci) => {
-    acc.querySelector('.accordion-head').addEventListener('click', () => acc.classList.toggle('open'));
     const cat = cats[ci];
-    acc.querySelectorAll('.item-row').forEach((row, ii) => {
-      row.addEventListener('click', () => openViewer(cat.items, ii));
-    });
+    const bodyEl = acc.querySelector('.accordion-body');
+    if ((cat.items || []).length) {
+      const inner = document.createElement('div');
+      bodyEl.appendChild(inner);
+      renderItems(inner, cat.items);
+    } else {
+      bodyEl.innerHTML = emptyHTML('لا توجد ملفات');
+    }
+    acc.querySelector('.accordion-head').addEventListener('click', () => acc.classList.toggle('open'));
   });
 }
+
+// يرسم قائمة ملفات في عنصر حاوٍ حسب نمط العرض (شبكة/قائمة)
+function renderItems(container, items) {
+  if (state.viewMode === 'grid') {
+    container.className = 'files-grid';
+    container.innerHTML = items.map((it, i) => itemCardHTML(it, i)).join('');
+    container.querySelectorAll('.file-card').forEach((el, i) => {
+      el.addEventListener('click', () => openViewer(items, i));
+      observeThumb(el);
+    });
+  } else {
+    container.className = 'ss-list';
+    container.innerHTML = items.map((it, i) => itemRowHTML(it, i)).join('');
+    container.querySelectorAll('.item-row').forEach((el, i) => {
+      el.addEventListener('click', () => openViewer(items, i));
+    });
+  }
+}
+
+function itemCardHTML(item, idx) {
+  const isImg = item.type === 'image';
+  return `
+    <div class="file-card" data-path="${escapeAttr(item.path)}" style="animation-delay:${Math.min(idx, 8) * 38}ms">
+      <div class="file-thumb"><span class="thumb-fallback">${ICON_FILE_THUMB}</span></div>
+      <div class="file-card-foot">
+        <span class="pdf-badge">${isImg ? 'صورة' : 'PDF'}</span>
+        <span class="file-card-title">${escapeHtml(item.title)}</span>
+      </div>
+    </div>`;
+}
+
+// ───────────────────────────────────────────────────────
+// محرّك الثمبنيل (كسول + طابور + IndexedDB)
+// ───────────────────────────────────────────────────────
+function observeThumb(cardEl) {
+  if (!thumbObserver) {
+    thumbObserver = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          thumbObserver.unobserve(e.target);
+          fillThumb(e.target);
+        }
+      });
+    }, { rootMargin: '150px' });
+  }
+  thumbObserver.observe(cardEl);
+}
+
+async function fillThumb(cardEl) {
+  const path = cardEl.dataset.path;
+  const item = state.index.find(it => it.path === path);
+  const thumbBox = cardEl.querySelector('.file-thumb');
+  if (!item || !thumbBox) return;
+
+  if (item.type === 'image') { setThumbImg(thumbBox, encodePath(item.path)); return; }
+
+  if (state.thumbs.has(path)) { setThumbImg(thumbBox, state.thumbs.get(path)); return; }
+
+  const cached = await idbGet(path);
+  if (cached) { state.thumbs.set(path, cached); setThumbImg(thumbBox, cached); return; }
+
+  thumbBox.classList.add('loading');
+  enqueueThumb(async () => {
+    const url = await genThumb(item);
+    thumbBox.classList.remove('loading');
+    if (url) {
+      state.thumbs.set(path, url);
+      idbPut(path, url);
+      setThumbImg(thumbBox, url);
+    }
+  });
+}
+
+function setThumbImg(thumbBox, src) {
+  const img = new Image();
+  img.className = 'thumb-img';
+  img.alt = '';
+  img.onload = () => {
+    const old = thumbBox.querySelector('.thumb-img');
+    if (old) old.remove();
+    thumbBox.appendChild(img);
+    thumbBox.classList.add('has-img');
+  };
+  img.src = src;
+}
+
+function enqueueThumb(task) { thumbQueue.push(task); pumpThumb(); }
+function pumpThumb() {
+  while (thumbActive < THUMB_CONCURRENCY && thumbQueue.length) {
+    const task = thumbQueue.shift();
+    thumbActive++;
+    Promise.resolve().then(task).catch(() => {}).finally(() => { thumbActive--; pumpThumb(); });
+  }
+}
+
+async function genThumb(item) {
+  let doc = null;
+  try {
+    doc = await pdfjsLib.getDocument({ url: encodePath(item.path), disableAutoFetch: true, disableStream: false }).promise;
+    const page = await doc.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    const scale = THUMB_WIDTH / base.width;
+    const vp = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(vp.width);
+    canvas.height = Math.round(vp.height);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    return canvas.toDataURL('image/jpeg', 0.6);
+  } catch {
+    return null;
+  } finally {
+    if (doc) { try { doc.destroy(); } catch {} }
+  }
+}
+
+function loadViewMode() {
+  try { const v = localStorage.getItem(VIEW_KEY); if (v === 'grid' || v === 'list') state.viewMode = v; } catch {}
+}
+function saveViewMode() { try { localStorage.setItem(VIEW_KEY, state.viewMode); } catch {} }
 
 function itemRowHTML(item, idx) {
   return `
