@@ -165,7 +165,6 @@ async function init() {
   initPDFJS();
   loadBookmarks();
   loadViewMode();
-  setupLogoFallback();
   setupSearch();
   setupViewerEvents();
   setupKeyboard();
@@ -190,14 +189,6 @@ function initPDFJS() {
   if (typeof pdfjsLib === 'undefined') return;
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-}
-
-function setupLogoFallback() {
-  const img = $('headerLogo');
-  const fallback = $('logoFallback');
-  if (!img || !fallback) return;
-  img.addEventListener('load', () => { img.classList.add('loaded'); fallback.classList.add('hidden'); });
-  img.addEventListener('error', () => { img.style.display = 'none'; });
 }
 
 function buildIndex() {

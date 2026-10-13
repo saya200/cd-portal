@@ -82,11 +82,8 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   width: 84px;
   height: 84px;
   object-fit: contain;
-  display: none;
+  display: block;
 }
-.header-logo-img.loaded { display: block; }
-.header-logo-fallback { display: flex; }
-.header-logo-fallback.hidden { display: none; }
 
 .header-text {
   width: 100%;
