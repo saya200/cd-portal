@@ -545,6 +545,8 @@ function setThumbImg(thumbBox, src) {
   img.className = 'thumb-img';
   img.alt = '';
   img.onload = () => {
+    // صفحة أفقية: تُعرض كاملة (contain) بدل قصّها من الأعلى
+    if (img.naturalWidth > img.naturalHeight * 1.05) img.classList.add('landscape');
     const old = thumbBox.querySelector('.thumb-img');
     if (old) old.remove();
     thumbBox.appendChild(img);
@@ -738,7 +740,8 @@ function loadFile(item) {
 
 async function loadPDF(url) {
   pdf.page = 1;
-  pdf.scale = window.innerWidth < 480 ? 1.4 : 1.8;
+  // جوال 1.4 (كما كان) · تابلت 1.8 · كمبيوتر 2.8 (الصفحة تُعرض بعرض ~920px فتبقى حادة)
+  pdf.scale = window.innerWidth < 480 ? 1.4 : (window.innerWidth < 1024 ? 1.8 : 2.8);
   try {
     pdf.doc = await pdfjsLib.getDocument(url).promise;
     pdf.total = pdf.doc.numPages;
@@ -757,6 +760,7 @@ async function renderPage() {
     const viewport = page.getViewport({ scale: pdf.scale });
     const canvas = $('pvCanvas');
     const ctx = canvas.getContext('2d');
+    try { ctx.direction = 'ltr'; } catch {}
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: ctx, viewport }).promise;
