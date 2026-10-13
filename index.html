@@ -102,23 +102,23 @@
           <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
       </a>
+      <button class="pv-icon-btn" id="pvShare" aria-label="مشاركة الملف">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+        </svg>
+      </button>
       <span class="pv-counter" id="pvCounter">—</span>
     </div>
 
     <div class="pv-main" id="pvMain">
-      <button class="pv-page-btn pv-prev" id="pvPrevPage" aria-label="الصفحة السابقة">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </button>
-      <button class="pv-page-btn pv-next" id="pvNextPage" aria-label="الصفحة التالية">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-
-      <div class="pv-canvas-wrap" id="pvCanvasWrap" style="display:none">
-        <canvas id="pvCanvas"></canvas>
+      <div class="pv-scroll" id="pvCanvasWrap" style="display:none" tabindex="0" aria-label="صفحات الملف">
+        <div class="pv-pages" id="pvPages"></div>
+      </div>
+      <div class="pv-zoom" id="pvZoom" style="display:none">
+        <button id="pvZoomOut" aria-label="تصغير">−</button>
+        <span id="pvZoomLevel">١٠٠٪</span>
+        <button id="pvZoomIn" aria-label="تكبير">+</button>
       </div>
       <div class="pv-img-wrap" id="pvImgWrap" style="display:none">
         <img id="pvImg" class="pv-img" alt="معاينة الصورة">
@@ -136,6 +136,12 @@
         <a id="pvNoPrevDownload" class="download-btn" href="#" download target="_blank">تحميل الملف</a>
       </div>
     </div>
+
+    <div class="pv-share-menu" id="pvShareMenu" style="display:none">
+      <a id="pvShareDownload" href="#" download>تحميل الملف</a>
+      <button id="pvShareCopy" type="button">نسخ رابط الملف</button>
+    </div>
+    <div class="pv-toast" id="pvToast" role="status"></div>
 
     <div class="pv-docnav" id="pvDocNav" style="display:none">
       <button class="pv-doc-btn pv-doc-prev" id="pvPrevDoc">

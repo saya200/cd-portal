@@ -22,11 +22,19 @@ const state = {
 };
 
 const pdf = {
-  doc:       null,
-  page:      1,
-  total:     0,
-  scale:     1.5,
-  rendering: false,
+  doc:      null,
+  page:     1,        // الصفحة الحالية (تتحدث مع التمرير)
+  total:    0,
+  zoom:     1,        // 1 = ملاءمة العرض
+  fitW:     0,
+  sizes:    [],       // أبعاد كل صفحة (pt)
+  pages:    [],       // عناصر الصفحات في DOM
+  rendered: new Map(),// رقم الصفحة → { canvas, key }
+  near:     new Set(),
+  io:       null,
+  token:    0,        // يُبطل العمليات القديمة عند تغيير الملف
+  pumping:  false,
+  task:     null,
 };
 
 const BM_KEY = 'cd-portal-bm';
@@ -729,81 +737,343 @@ function loadFile(item) {
     img.onload  = () => showViewerPanel('image');
     img.onerror = () => showViewerPanel('noprev');
     img.src = url;
-    $('pvPrevPage').style.display = 'none';
-    $('pvNextPage').style.display = 'none';
   } else {
-    $('pvPrevPage').style.display = 'flex';
-    $('pvNextPage').style.display = 'flex';
     loadPDF(url);
   }
 }
 
+// ── عارض PDF بتمرير عمودي متصل: كل الصفحات في عمود، وتُرسم القريبة من الشاشة فقط ──
+const PV_PAD = 12;          // هامش العمود (px)
+const PV_MAX_ZOOM = 4;
+const PV_NEAR_KEEP = 2;     // صفحات تبقى مرسومة خارج المنطقة القريبة قبل تحريرها
+
+function pvSc() { return $('pvCanvasWrap'); }
+function pvIsSmall() { return window.innerWidth < 768; }
+function pvCssWidth() { return Math.round(pdf.fitW * pdf.zoom); }
+function pvKey() { return `${pvCssWidth()}@${Math.min(window.devicePixelRatio || 1, 2)}`; }
+function pvSize(n) { return pdf.sizes[n - 1] || pdf.sizes[0]; }
+
 async function loadPDF(url) {
-  pdf.page = 1;
-  // جوال 1.4 (كما كان) · تابلت 1.8 · كمبيوتر 2.8 (الصفحة تُعرض بعرض ~920px فتبقى حادة)
-  pdf.scale = window.innerWidth < 480 ? 1.4 : (window.innerWidth < 1024 ? 1.8 : 2.8);
+  const token = ++pdf.token;
   try {
-    pdf.doc = await pdfjsLib.getDocument(url).promise;
-    pdf.total = pdf.doc.numPages;
-    await renderPage();
+    const doc = await pdfjsLib.getDocument(url).promise;
+    if (token !== pdf.token) { try { doc.destroy(); } catch {} return; }
+    pdf.doc = doc;
+    pdf.total = doc.numPages;
+    pdf.page = 1;
+    pdf.zoom = 1;
+    const first = await doc.getPage(1);
+    if (token !== pdf.token) return;
+    const v = first.getViewport({ scale: 1 });
+    pdf.sizes = new Array(pdf.total).fill(null);
+    pdf.sizes[0] = { w: v.width, h: v.height };
+    try { first.cleanup(); } catch {}
+
+    pvBuildPages();
     showViewerPanel('canvas');
+    pvLayout();
+    pvObserve();
+    pvUpdateCounter();
+    pvUpdateZoomUI();
+    pvLoadSizes(token);
+    pvSc().scrollTop = 0;
+    try { pvSc().focus({ preventScroll: true }); } catch {}
   } catch {
-    showViewerPanel('noprev');
+    if (token === pdf.token) showViewerPanel('noprev');
   }
 }
 
-async function renderPage() {
-  if (!pdf.doc || pdf.rendering) return;
-  pdf.rendering = true;
-  try {
-    const page = await pdf.doc.getPage(pdf.page);
-    const viewport = page.getViewport({ scale: pdf.scale });
-    const canvas = $('pvCanvas');
-    const ctx = canvas.getContext('2d');
-    try { ctx.direction = 'ltr'; } catch {}
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: ctx, viewport }).promise;
-  } finally {
-    pdf.rendering = false;
+function pvBuildPages() {
+  const host = $('pvPages');
+  host.innerHTML = '';
+  pdf.pages = [];
+  const frag = document.createDocumentFragment();
+  const s = pvSize(1);
+  for (let n = 1; n <= pdf.total; n++) {
+    const d = document.createElement('div');
+    d.className = 'pv-page';
+    d.style.aspectRatio = `${s.w} / ${s.h}`;
+    frag.appendChild(d);
+    pdf.pages.push(d);
   }
-  updatePageControls();
+  host.appendChild(frag);
 }
 
-function updatePageControls() {
-  if (pdf.doc) {
-    $('pvCounter').textContent = `${arNum(pdf.page)} من ${arNum(pdf.total)}`;
-    $('pvPrevPage').disabled = pdf.page <= 1;
-    $('pvNextPage').disabled = pdf.page >= pdf.total;
-  } else {
-    $('pvCounter').textContent = '—';
+// عرض الصفحة = عرض الشاشة (بحدّ أقصى على الكمبيوتر) × التكبير
+function pvLayout() {
+  const sc = pvSc();
+  const avail = sc.clientWidth - PV_PAD * 2;
+  const maxW = window.innerWidth >= 1024 ? 920 : 900;
+  pdf.fitW = Math.max(200, Math.min(avail, maxW));
+  $('pvPages').style.setProperty('--pw', pvCssWidth() + 'px');
+}
+
+function pvSetSize(n, w, h) {
+  pdf.sizes[n - 1] = { w, h };
+  const el = pdf.pages[n - 1];
+  if (!el) return;
+  const sc = pvSc();
+  const before = el.offsetHeight;
+  el.style.aspectRatio = `${w} / ${h}`;
+  const delta = el.offsetHeight - before;
+  // صفحة فوق الشاشة تغيّر ارتفاعها: عوّض كي لا يقفز المحتوى
+  if (delta && el.offsetTop + before <= sc.scrollTop) sc.scrollTop += delta;
+}
+
+// أحجام بقية الصفحات في الخلفية (للمستندات ذات الصفحات المختلفة)
+async function pvLoadSizes(token) {
+  const doc = pdf.doc;
+  for (let n = 2; n <= pdf.total; n++) {
+    if (token !== pdf.token) return;
+    try {
+      const page = await doc.getPage(n);
+      const v = page.getViewport({ scale: 1 });
+      const cur = pdf.sizes[0];
+      if (Math.abs(v.width - cur.w) > 0.5 || Math.abs(v.height - cur.h) > 0.5) pvSetSize(n, v.width, v.height);
+      else pdf.sizes[n - 1] = { w: cur.w, h: cur.h };
+      page.cleanup();
+    } catch {}
+    if (n % 8 === 0) await new Promise(r => setTimeout(r, 0));
   }
 }
 
-async function changePage(delta) {
-  const next = pdf.page + delta;
-  if (!pdf.doc || next < 1 || next > pdf.total) return;
-  pdf.page = next;
-  await renderPage();
-  const wrap = $('pvCanvasWrap');
-  if (wrap) wrap.scrollTop = 0;
+function pvObserve() {
+  if (pdf.io) pdf.io.disconnect();
+  pdf.near.clear();
+  pdf.io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const n = +e.target.dataset.n;
+      if (e.isIntersecting) pdf.near.add(n); else pdf.near.delete(n);
+    });
+    pvEvict();
+    pvPump();
+  }, { root: pvSc(), rootMargin: '150% 0px' });
+  pdf.pages.forEach((el, i) => { el.dataset.n = i + 1; pdf.io.observe(el); });
+}
+
+function pvFree(n) {
+  const r = pdf.rendered.get(n);
+  if (!r) return;
+  r.canvas.width = r.canvas.height = 0;
+  const el = pdf.pages[n - 1];
+  if (el) el.replaceChildren();
+  pdf.rendered.delete(n);
+}
+
+// حرّر الصفحات البعيدة عن الشاشة لتوفير الذاكرة
+function pvEvict() {
+  if (!pdf.near.size) return;
+  const lo = Math.min(...pdf.near) - PV_NEAR_KEEP;
+  const hi = Math.max(...pdf.near) + PV_NEAR_KEEP;
+  for (const n of [...pdf.rendered.keys()]) if (n < lo || n > hi) pvFree(n);
+}
+
+function pvNext() {
+  const sc = pvSc();
+  const mid = sc.scrollTop + sc.clientHeight / 2;
+  const key = pvKey();
+  let best = 0, bestD = Infinity;
+  for (const n of pdf.near) {
+    const r = pdf.rendered.get(n);
+    if (r && r.key === key) continue;
+    const el = pdf.pages[n - 1];
+    const d = Math.abs(el.offsetTop + el.offsetHeight / 2 - mid);
+    if (d < bestD) { bestD = d; best = n; }
+  }
+  return best;
+}
+
+function pvPump() {
+  if (pdf.pumping || !pdf.doc) return;
+  pdf.pumping = true;
+  const token = pdf.token;
+  (async () => {
+    try {
+      while (token === pdf.token && pdf.doc) {
+        const n = pvNext();
+        if (!n) break;
+        await pvRender(n, token);
+      }
+    } catch {} finally { pdf.pumping = false; }
+  })();
+}
+
+async function pvRender(n, token) {
+  const key = pvKey();
+  const page = await pdf.doc.getPage(n);
+  if (token !== pdf.token || !pdf.near.has(n)) return;   // ابتعدت الصفحة أثناء الانتظار
+  const s0 = page.getViewport({ scale: 1 });
+  const known = pdf.sizes[n - 1];
+  if (!known || Math.abs(known.w - s0.width) > 0.5 || Math.abs(known.h - s0.height) > 0.5) pvSetSize(n, s0.width, s0.height);
+
+  let scale = (pvCssWidth() / s0.width) * Math.min(window.devicePixelRatio || 1, 2);
+  const maxArea = pvIsSmall() ? 6e6 : 16e6;          // سقف الذاكرة لكل صفحة
+  const area = s0.width * s0.height * scale * scale;
+  if (area > maxArea) scale *= Math.sqrt(maxArea / area);
+  scale = Math.min(scale, 4096 / Math.max(s0.width, s0.height));
+  const vp = page.getViewport({ scale });
+
+  // نرسم على canvas منفصل (اتجاهه LTR) ثم نستبدله، فلا وميض ولا تأثر بـ rtl
+  const off = document.createElement('canvas');
+  off.width = Math.floor(vp.width);
+  off.height = Math.floor(vp.height);
+  const ctx = off.getContext('2d');
+  try { ctx.direction = 'ltr'; } catch {}
+  const task = page.render({ canvasContext: ctx, viewport: vp });
+  pdf.task = task;
+  try { await task.promise; }
+  catch (e) { if (e && e.name === 'RenderingCancelledException') return; throw e; }
+  finally { pdf.task = null; }
+  if (token !== pdf.token) return;
+
+  const old = pdf.rendered.get(n);
+  if (old) old.canvas.width = old.canvas.height = 0;
+  const el = pdf.pages[n - 1];
+  el.replaceChildren(off);
+  pdf.rendered.set(n, { canvas: off, key });
+  try { page.cleanup(); } catch {}
+  pvEvict();   // قد تكون الشاشة ابتعدت أثناء الرسم
+}
+
+function pvCurrentPage() {
+  const sc = pvSc();
+  const y = sc.scrollTop + sc.clientHeight * 0.35;
+  let n = Math.min(Math.max(pdf.page, 1), pdf.total);
+  while (n > 1 && pdf.pages[n - 1].offsetTop > y) n--;
+  while (n < pdf.total && pdf.pages[n].offsetTop <= y) n++;
+  return n;
+}
+
+function pvUpdateCounter() {
+  $('pvCounter').textContent = pdf.doc ? `${arNum(pdf.page)} من ${arNum(pdf.total)}` : '—';
+}
+
+function pvOnScroll() {
+  if (pdf.scrollRaf || !pdf.doc) return;
+  pdf.scrollRaf = requestAnimationFrame(() => {
+    pdf.scrollRaf = 0;
+    if (!pdf.doc) return;
+    const n = pvCurrentPage();
+    if (n !== pdf.page) { pdf.page = n; pvUpdateCounter(); }
+  });
+}
+
+function pvGoTo(n) {
+  if (!pdf.doc) return;
+  n = Math.min(Math.max(1, n), pdf.total);
+  pvSc().scrollTop = pdf.pages[n - 1].offsetTop - PV_PAD / 2;
+}
+
+function pvSetZoom(z, fx, fy) {
+  if (!pdf.doc) return;
+  z = Math.max(1, Math.min(PV_MAX_ZOOM, z));
+  if (Math.abs(z - pdf.zoom) < 0.005) return;
+  const sc = pvSc();
+  if (fx == null) fx = sc.clientWidth / 2;
+  if (fy == null) fy = sc.clientHeight / 2;
+  const rx = (sc.scrollLeft + fx) / sc.scrollWidth;
+  const ry = (sc.scrollTop + fy) / sc.scrollHeight;
+  pdf.zoom = z;
+  pvLayout();
+  sc.scrollLeft = rx * sc.scrollWidth - fx;
+  sc.scrollTop = ry * sc.scrollHeight - fy;
+  clearTimeout(pdf.zoomT);
+  pdf.zoomT = setTimeout(pvPump, 160);   // أعد الرسم بالدقة الجديدة بعد استقرار الزوم
+  pvUpdateZoomUI();
+}
+
+function pvUpdateZoomUI() {
+  const el = $('pvZoomLevel');
+  if (el) el.textContent = Math.round(pdf.zoom * 100) + '٪';
+  $('pvZoomOut').disabled = pdf.zoom <= 1.001;
+  $('pvZoomIn').disabled = pdf.zoom >= PV_MAX_ZOOM - 0.001;
 }
 
 function destroyPDF() {
+  pdf.token++;
+  clearTimeout(pdf.zoomT);
+  if (pdf.task) { try { pdf.task.cancel(); } catch {} pdf.task = null; }
+  if (pdf.io) { pdf.io.disconnect(); pdf.io = null; }
+  for (const n of [...pdf.rendered.keys()]) pvFree(n);
+  pdf.rendered.clear();
+  pdf.near.clear();
+  pdf.pages = [];
+  pdf.sizes = [];
+  const host = $('pvPages');
+  if (host) host.innerHTML = '';
   if (pdf.doc) { try { pdf.doc.destroy(); } catch {} pdf.doc = null; }
-  pdf.total = 0; pdf.page = 1;
-  const canvas = $('pvCanvas');
-  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  pdf.total = 0; pdf.page = 1; pdf.zoom = 1; pdf.pumping = false;
   const img = $('pvImg');
   if (img) img.src = '';
 }
 
 function showViewerPanel(which) {
-  $('pvCanvasWrap').style.display = which === 'canvas'  ? 'flex' : 'none';
-  $('pvImgWrap').style.display    = which === 'image'   ? 'flex' : 'none';
-  $('pvLoading').style.display    = which === 'loading' ? 'flex' : 'none';
-  $('pvNoPrev').style.display     = which === 'noprev'  ? 'flex' : 'none';
-  if (which !== 'canvas') updatePageControls();
+  $('pvCanvasWrap').style.display = which === 'canvas'  ? 'block' : 'none';
+  $('pvImgWrap').style.display    = which === 'image'   ? 'flex'  : 'none';
+  $('pvLoading').style.display    = which === 'loading' ? 'flex'  : 'none';
+  $('pvNoPrev').style.display     = which === 'noprev'  ? 'flex'  : 'none';
+  $('pvZoom').style.display       = which === 'canvas'  ? ''      : 'none';
+  if (which !== 'canvas') pvUpdateCounter();
+}
+
+// ── مشاركة الملف نفسه (قائمة المشاركة في الجهاز، وإلا تحميل/نسخ رابط) ──
+const shareCache = { path: null, file: null };
+
+function pvToast(msg) {
+  const t = $('pvToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(pvToast._t);
+  pvToast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function pvCloseShareMenu() { $('pvShareMenu').style.display = 'none'; }
+
+function pvOpenShareMenu(item, fileUrl, url) {
+  const m = $('pvShareMenu');
+  $('pvShareDownload').href = url;
+  $('pvShareDownload').setAttribute('download', item.path.split('/').pop());
+  $('pvShareCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText(fileUrl); pvToast('تم نسخ رابط الملف'); }
+    catch { window.prompt('انسخ رابط الملف:', fileUrl); }
+    pvCloseShareMenu();
+  };
+  m.style.display = 'flex';
+}
+
+async function shareCurrent() {
+  const item = currentItem();
+  if (!item || !item.path) return;
+  const url = encodePath(item.path);
+  const fileUrl = new URL(url, location.href).href;
+  const btn = $('pvShare');
+
+  if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') {
+    pvOpenShareMenu(item, fileUrl, url);
+    return;
+  }
+  try {
+    if (shareCache.path !== item.path) {
+      btn.classList.add('busy');
+      pvToast('جارٍ تجهيز الملف للمشاركة…');
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('fetch');
+      const blob = await res.blob();
+      shareCache.path = item.path;
+      shareCache.file = new File([blob], item.path.split('/').pop(), { type: 'application/pdf' });
+      btn.classList.remove('busy');
+    }
+    if (!navigator.canShare({ files: [shareCache.file] })) { pvOpenShareMenu(item, fileUrl, url); return; }
+    await navigator.share({ files: [shareCache.file], title: item.title });
+  } catch (e) {
+    btn.classList.remove('busy');
+    if (e && e.name === 'AbortError') return;            // أغلق المستخدم القائمة
+    if (e && e.name === 'NotAllowedError' && shareCache.path === item.path) {
+      pvToast('الملف جاهز — اضغط مشاركة مرة أخرى');       // انتهت مهلة اللمس بعد التحميل
+      return;
+    }
+    pvOpenShareMenu(item, fileUrl, url);
+  }
 }
 
 function navigateDoc(delta) {
@@ -818,8 +1088,42 @@ function navigateDoc(delta) {
 // ───────────────────────────────────────────────────────
 function setupViewerEvents() {
   $('pvClose').addEventListener('click', closeViewer);
-  $('pvPrevPage').addEventListener('click', () => changePage(-1));
-  $('pvNextPage').addEventListener('click', () => changePage(1));
+  const sc = pvSc();
+  sc.addEventListener('scroll', pvOnScroll, { passive: true });
+  window.addEventListener('resize', () => {
+    if (!state.viewer.open || !pdf.doc) return;
+    clearTimeout(pdf.resizeT);
+    pdf.resizeT = setTimeout(() => { pvLayout(); pvPump(); }, 150);
+  });
+  // زوم: Ctrl+عجلة (كمبيوتر) وقرصة إصبعين (جوال)
+  sc.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const r = sc.getBoundingClientRect();
+    pvSetZoom(pdf.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  let pinch = null;
+  const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  sc.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) pinch = { d: dist(e.touches[0], e.touches[1]), z: pdf.zoom };
+  }, { passive: true });
+  sc.addEventListener('touchmove', e => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    const [a, b] = e.touches, r = sc.getBoundingClientRect();
+    pvSetZoom(pinch.z * dist(a, b) / pinch.d, (a.clientX + b.clientX) / 2 - r.left, (a.clientY + b.clientY) / 2 - r.top);
+  }, { passive: false });
+  sc.addEventListener('touchend', e => { if (e.touches.length < 2) pinch = null; }, { passive: true });
+  $('pvZoomIn').addEventListener('click', () => pvSetZoom(pdf.zoom * 1.25));
+  $('pvZoomOut').addEventListener('click', () => pvSetZoom(pdf.zoom / 1.25));
+  $('pvCounter').addEventListener('click', () => {
+    if (!pdf.doc) return;
+    const v = window.prompt('الانتقال إلى الصفحة (1-' + pdf.total + ')', String(pdf.page));
+    const n = parseInt(String(v || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)), 10);
+    if (n) pvGoTo(n);
+  });
+  $('pvShare').addEventListener('click', e => { e.stopPropagation(); shareCurrent(); });
+  document.addEventListener('click', e => { if (!e.target.closest('#pvShareMenu')) pvCloseShareMenu(); });
   $('pvPrevDoc').addEventListener('click', () => navigateDoc(-1));
   $('pvNextDoc').addEventListener('click', () => navigateDoc(1));
   $('pvBookmark').addEventListener('click', () => {
@@ -832,11 +1136,12 @@ function setupKeyboard() {
   document.addEventListener('keydown', e => {
     if (state.viewer.open) {
       switch (e.key) {
-        case 'Escape':     closeViewer(); break;
-        case 'ArrowRight': pdf.doc ? changePage(-1) : navigateDoc(-1); break;
-        case 'ArrowLeft':  pdf.doc ? changePage(1)  : navigateDoc(1);  break;
-        case 'ArrowUp':    changePage(-1); break;
-        case 'ArrowDown':  changePage(1);  break;
+        case 'Escape':     if ($('pvShareMenu').style.display !== 'none') pvCloseShareMenu(); else closeViewer(); break;
+        case 'ArrowRight': if (!pdf.doc) navigateDoc(-1); break;
+        case 'ArrowLeft':  if (!pdf.doc) navigateDoc(1);  break;
+        case '+': case '=': pvSetZoom(pdf.zoom * 1.25); break;
+        case '-': pvSetZoom(pdf.zoom / 1.25); break;
+        case '0': pvSetZoom(1); break;
       }
       return;
     }
