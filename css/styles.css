@@ -743,7 +743,9 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   cursor: pointer;
 }
 .pv-zoom button:disabled { opacity: 0.3; cursor: default; }
-.pv-zoom span { min-width: 46px; text-align: center; }
+.pv-zoom .pv-zoom-level { width: auto; min-width: 54px; border-radius: var(--r-full); font-size: 0.78rem; font-weight: 700; }
+.pv-zoom button:not(:disabled):hover { background: rgba(255,255,255,0.14); }
+.pv-zoom #pvFitPage { margin-right: 2px; border-right: 1px solid rgba(255,255,255,0.15); border-radius: 0 50% 50% 0; }
 @media (hover: hover) and (pointer: fine) { .pv-zoom { display: flex; } }
 
 /* ── قائمة المشاركة البديلة + التنبيه ── */

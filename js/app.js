@@ -744,6 +744,7 @@ function loadFile(item) {
 
 // ── عارض PDF بتمرير عمودي متصل: كل الصفحات في عمود، وتُرسم القريبة من الشاشة فقط ──
 const PV_PAD = 12;          // هامش العمود (px)
+const PV_MIN_ZOOM = 0.25;   // 25% من عرض الشاشة (ملاءمة العرض = 100%)
 const PV_MAX_ZOOM = 4;
 const PV_NEAR_KEEP = 2;     // صفحات تبقى مرسومة خارج المنطقة القريبة قبل تحريرها
 
@@ -966,7 +967,7 @@ function pvGoTo(n) {
 
 function pvSetZoom(z, fx, fy) {
   if (!pdf.doc) return;
-  z = Math.max(1, Math.min(PV_MAX_ZOOM, z));
+  z = Math.max(PV_MIN_ZOOM, Math.min(PV_MAX_ZOOM, z));
   if (Math.abs(z - pdf.zoom) < 0.005) return;
   const sc = pvSc();
   if (fx == null) fx = sc.clientWidth / 2;
@@ -982,10 +983,22 @@ function pvSetZoom(z, fx, fy) {
   pvUpdateZoomUI();
 }
 
+// ملاءمة الصفحة كاملة داخل الشاشة (الصفحة الحالية)
+function pvFitPage() {
+  if (!pdf.doc) return;
+  const sc = pvSc();
+  const s = pvSize(pdf.page);
+  const pageH100 = pdf.fitW * s.h / s.w;               // ارتفاع الصفحة عند 100%
+  const z = (sc.clientHeight - PV_PAD * 2) / pageH100;
+  pvSetZoom(Math.min(1, z));
+  const el = pdf.pages[pdf.page - 1];
+  if (el) sc.scrollTop = el.offsetTop - PV_PAD;
+}
+
 function pvUpdateZoomUI() {
   const el = $('pvZoomLevel');
-  if (el) el.textContent = Math.round(pdf.zoom * 100) + '٪';
-  $('pvZoomOut').disabled = pdf.zoom <= 1.001;
+  if (el) el.textContent = arNum(Math.round(pdf.zoom * 100)) + '٪';
+  $('pvZoomOut').disabled = pdf.zoom <= PV_MIN_ZOOM + 0.001;
   $('pvZoomIn').disabled = pdf.zoom >= PV_MAX_ZOOM - 0.001;
 }
 
@@ -1116,6 +1129,8 @@ function setupViewerEvents() {
   sc.addEventListener('touchend', e => { if (e.touches.length < 2) pinch = null; }, { passive: true });
   $('pvZoomIn').addEventListener('click', () => pvSetZoom(pdf.zoom * 1.25));
   $('pvZoomOut').addEventListener('click', () => pvSetZoom(pdf.zoom / 1.25));
+  $('pvZoomLevel').addEventListener('click', () => pvSetZoom(1));   // ملاءمة العرض
+  $('pvFitPage').addEventListener('click', pvFitPage);
   $('pvCounter').addEventListener('click', () => {
     if (!pdf.doc) return;
     const v = window.prompt('الانتقال إلى الصفحة (1-' + pdf.total + ')', String(pdf.page));
@@ -1142,6 +1157,7 @@ function setupKeyboard() {
         case '+': case '=': pvSetZoom(pdf.zoom * 1.25); break;
         case '-': pvSetZoom(pdf.zoom / 1.25); break;
         case '0': pvSetZoom(1); break;
+        case '9': pvFitPage(); break;
       }
       return;
     }
