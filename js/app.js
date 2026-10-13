@@ -41,7 +41,7 @@ state.thumbs = new Map();
 
 // ── طابور توليد الثمبنيل (حدّ تزامن) ──
 const THUMB_CONCURRENCY = 2;
-const THUMB_WIDTH = 300;            // عرض الرسم بالبكسل (وضوح على الشاشات عالية الكثافة)
+const THUMB_WIDTH = 480;            // عرض الرسم بالبكسل: بطاقة ~180-200px × كثافة 2 ≈ 400
 const thumbQueue = [];
 let thumbActive = 0;
 let thumbObserver = null;
@@ -55,10 +55,11 @@ function idbOpen() {
   if (idbPromise) return idbPromise;
   idbPromise = new Promise((resolve) => {
     try {
-      const req = indexedDB.open(IDB_NAME, 1);
+      const req = indexedDB.open(IDB_NAME, 2);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+        else req.transaction.objectStore(IDB_STORE).clear(); // v2: إبطال الثمبنيلات القديمة منخفضة الدقة
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
@@ -573,7 +574,7 @@ async function genThumb(item) {
     canvas.width = Math.round(vp.width);
     canvas.height = Math.round(vp.height);
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    return canvas.toDataURL('image/jpeg', 0.6);
+    return canvas.toDataURL('image/jpeg', 0.72);
   } catch {
     return null;
   } finally {
